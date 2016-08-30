@@ -1,0 +1,89 @@
+1. annotating introductions
+	to introduce new functionality (as an interface) into an advised object
+		when a method on the introduced interface is called, the proxy delegates the call to some other object the provides the implementation of the new interface
+		yes, you can manually create an interface and implement it in the target objects
+			but again, the hierarchy will be complicated
+			and also, you may not have the source code of the target
+
+	exmaple
+		@Aspect
+		public class EncoreableIntroducer {
+			@DeclareParents(value = "concert.Performance+",		// the target to be introduced to. + means all the subclasses
+				defaultImpl = DefaultEncoreable.class)		// the default implementation
+			public static Encoreable encoreable;			// the introduced interface
+		}
+		// the ofcource, you should declare this aspect as a bean in a config
+
+2. declaring aspects in XML
+	the second style
+		the advantage is, the Java aspect interface itself is still POJO, no annotations is needed
+		necessary if you do not have the source code of the aspect
+	aop namespace
+		<aop:advisor>		Defines an AOP advisor.
+		<aop:after>		Defines an AOP after advice (regardless of whether the advised method returns successfully).
+		<aop:after-returning>	Defines an AOP after-returning advice.
+		<aop:after-throwing>	Defines an AOP after-throwing advice.
+		<aop:around>		Defines an AOP around advice.
+		<aop:aspect>		Defines an aspect.
+		<aop:aspectj-autoproxy>	Enables annotation-driven aspects using @AspectJ.
+		<aop:before>		Defines an AOP before advice.
+		<aop:config>		The top-level AOP element. Most \<aop:\*\> elements must be contained within \<aop:config\>.
+		<aop:declare-parents>	Introduces additional interfaces to advised objects that are transparently implemented.
+		<aop:pointcut>		Defines a pointcut.
+	example
+		<aop:config>
+			<aop:aspect ref="audience">
+				<aop:before pointcut="execution(** concert.Performance.perform(..))"
+					method="silenceCellPhone" />
+
+				// or, to avoid duplication
+				<aop:pointcut id="performance"		// you can place this inside <aop:config>, so that it can be used in mul
+					expression="execution(** concert.Performance.perform(..))" />
+				<aop:around pointcut-ref="performace"	// around
+					method="watchPerfomance">
+
+				// introfuction
+				<aop:declare-parents
+				    types-matching="concert.Performance+"
+				    implement-interface="concert.Encoreable"
+				    default-impl="concert.DefaultEncoreable" />		// or, you can use delegate-ref="encoreableDelegate" to specify the default impl
+											// but you should create a bean like this 
+											// <bean id="encoreableDelegate" class="concert.DefaultEncoreable" />
+			</aop:aspect>
+
+			// to pass parameters to advice
+			<aop:aspect ref="trackCounter">
+				<aop:pointcut id="trackPlayed"
+					expression="execution(* soundsystem.CompactDisc.playTrack(int)) and args(trackNumber)" />	// use 'and' insteand of && in XML
+				<aop:before pointcut-ref="trackPlayed"
+					method="countTrack" />		// nothing special, but this method should take an int as parameter
+			</aop:aspect>
+		</aop:config>
+
+3. injecting AspectJ aspects
+	the fourth style
+	exmaple
+		public aspect CriticAspect {
+			public CriticAspect() {}
+
+			pointcut performance(): execution(* perform(..));
+
+			afterReturning(): performance() {
+				System.out.println(criticismEngine.getCriticism());	// this aspect depends on another class
+			}								// so we can use Spring to inject the dependency
+											// if this dependency does not exist, injecting AspectJ has nothing to do with Spring
+			private CriticismEngine criticismEngine;
+
+			public void setCriticismEngine(CriticismEngine criticismEngine) {
+				this.criticismEngine = criticismEngine;
+			}
+		}
+
+		// to use Spring DI
+		<bean class="com.springinaction.springidol.CriticAspect"
+		    factory-method="aspectOf">		// Spring is not responsible for creating the aspect, so a factory method to retrieve the bean is necessary
+		  <property name="criticismEngine" ref="criticismEngine" />
+		</bean>
+
+
+

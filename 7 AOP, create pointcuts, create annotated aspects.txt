@@ -1,0 +1,147 @@
+1. Aspect-oriented Programming
+	is to seperate those cross-cutting concerns from business logic
+		yes, you can define interfaces to implement those concrens, 
+			but in this way, many classes have to implemnt those interfaces, which can lead to brittle object hierarchy
+		using AOP, there'll be nothing about the aspects inside the main logic modules
+	AOP terminology
+		Advice	-the job of an aspect (what and when)
+			five kinds of advice
+				Before
+					The advice functionality takes place before the advised method is invoked.
+				After 
+					The advice functionality takes place after the advised method completes, regardless of the outcome.
+				After-returning 
+					The advice functionality takes place after the advised method successfully completes.
+				After-throwing 
+					The advice functionality takes place after the advised method throws an exception.
+				Around 
+					The advice wraps the advised method, providing some functionality before and after the advised method is invoked.
+		Join points
+			A join point is a point in the execution of the application where an aspect can be plugged in
+				This point could be a method being called, an exception being thrown, or even a field being modified
+		Pointcuts (where)
+			A pointcut definition matches one or more join points at which advice should be woven
+		Aspects
+			An aspect is the merger of advice and pointcuts
+			the advice indicates what and when it does, and the pointcut desides where it does
+		Introductions
+			An introduction allows you to add new methods or attributes to existing classes
+		Weaving
+			the process of applying aspects to a target object to create a new proxied object
+			weaving can take place at
+				Compile time
+					Aspects are woven in when the target class is compiled. 
+					This requires a special compiler. AspectJ’s weaving compiler weaves aspects this way.
+				Class load time
+					Aspects are woven in when the target class is loaded into the JVM.
+					This requires a special ClassLoader that enhances the target class’s bytecode before the class is introduced into the application
+						AspectJ 5’s load-time weaving (LTW) support weaves aspects this way.
+				Runtime 
+					Aspects are woven in sometime during the execution of the application.
+					Typically, an AOP container dynamically generates a proxy object that delegates to the target object while weaving in the aspects.
+						This is how Spring AOP aspects are woven.
+					
+2. Spring's AOP support
+	the ability to create pointcuts that define the join points at which aspects should be woven is what makes it an AOP framework
+	four styles of Spring's AOP support
+		Classic Spring proxy-based AOP
+			out-dated, over-complicated
+		Pure-POJO aspects
+			can turn POJOs into aspects, but requires XML configuration 
+		@AspectJ annotation-driven aspects
+			using AspectJ's help, can be done without XML
+			but under the cover it's still Spring's proxy-based AOP
+
+			* the three styles above are Spring's own implementations
+				which are built around dynamic proxies, so are limited to method interception
+					do not support constructor or property interception, etc
+				but should be enough for most of the cases
+		Injected AspectJ aspects
+			supports more than method interception
+	Spring wraps the target bean with a proxy class
+		the proxy intercepts method calls, performs additional aspect logic, and then invokes the target method
+
+3. Selecting join points with pointcuts
+	Spring uses AspectJ’s pointcut expression language to define Spring aspects
+	AspectJ desinators supported by Spring
+		args()		Limits join-point matches to the execution of methods whose arguments are instances of the given types
+		@args()		Limits join-point matches to the execution of methods whose arguments are annotated with the given annotation types
+		execution()	Matches join points that are method executions
+		this()		Limits join-point matches to those where the bean reference of the AOP proxy is of a given type
+		target()	Limits join-point matches to those where the target object is of a given type
+		@target()	Limits matching to join points where the class of the executing object has an annotation of the given type
+		within()	Limits matching to join points within certain types
+		@within()	Limits matching to join points within types that have the given annotation
+				(the execution of methods declared in types with the given annotation when using Spring AOP)
+		@annotation	Limits join-point matches to those where the subject of the join point has the given annotation
+
+		bean(String)	Spring adds this desinator to limit the pointcut's effect to a certain bean via its id
+
+	example
+		apply advice whenever this method is trigured
+			execution(* concert.Performance.perform(..))	// does not care what is the return type and arguments
+		apply when it's trigured within a certain package
+			execution(* concert.Performance.perform(..)) && within(concert.*)
+				// &&, ||, !, and, or, not
+		apply when it's called by those other than one certain bean
+			execution(* concert.Performance.perform(..)) && !bean('woodstock')
+		
+4. create annotated aspects
+	create an aspect
+		// we treat the audience as an aspect to a performance
+		@Aspect
+		public class Audience {
+			@Pointcut("execution(** concert.Performance.perform(..))")	// you can define a reusable pointcut
+			public void performance() {}					// the body should be empty, cuz it's just a marker
+
+			@Before("performance()")					// give a pointcut, or you can just giva a pointcut expression itself
+			public void silenceCellPhone() { //... }
+
+			@Before("performance()")
+			public void takeSeats() { //... }
+
+			@AfterReturning("performance()")
+			public void applause() { //... }
+
+			@AfterThrowing("performance()")
+			public void demandRefund() { //... }
+
+			// you can use one @Around method to implement what's done above
+				and using @Around can share info between before and after, e.g. calculate how long the proceed() takes
+			@Around("performance()")
+			public void watchPerformace(ProceedingJoinPoint pj) {
+				try {
+					// silenceCellPhone
+					// takeSeats
+					pj.proceed();		// you must explicitly invoke this
+					// applause		// and you can invoke it multiple times, usually in the case that it may fail
+				} catch (Throwable e) {
+					// demandRefund
+				}
+			}
+		}
+		// AspectJ also provides @After and @Around for defining aspects
+
+		to deal with parameters in advice
+			@Pointcut("execution(** concert.Performance.perform(int)) && args(number)")	// actually, the int can be ommitted, cuz it's a &&
+			public void performance(int number) {}
+			
+			@Before("performance(number)")
+			public void takeSeats(int number) { //... }
+
+	enable auto-proxying of AspectJ annotations	(we are using the third style of AOP support)
+		@Configuration
+		@EnableAspectJAutoProxy				// enable
+		@ComponentScan
+		public class ConcertConfig {
+			@Bean
+			public Audience audience() {		// declare a bean of the aspect
+				return new Audience();
+			}
+		}
+		<beans ...
+			xmlns:aop="http://www.springframework.org/schema/aop">
+			<aop:aspectj-autoproxy />
+			<bean class="concert.Audience" />
+			...
+		</beans>

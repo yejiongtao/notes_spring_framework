@@ -1,0 +1,103 @@
+1. explicitly wire beans with Java
+	JavaConfig is often set apart in a serperate package	
+	code
+		@Configuration
+		public class CDPlayerConfig {
+			
+			@Bean		// can be used to annotate any method, and the returned object will be registered as a bean
+					// named "compactDisc"
+					// @Bean(name = "myCompactDisc")
+					// by default, all beans in Spring are singletons
+					//	which means that no matter how many times you call this sgtPeppers(), the same bean will be returned
+					//	(but you should not manually call this method)
+					//	however, you can have another method to return CompactDisc as a bean as well
+			public CompactDisc sgtPeppers() {
+				return new SgtPeppers();
+			}
+
+			@Bean
+			public CDPlayer cdPlayer(CompactDisc cd) {
+				return new CDPlayer(cd);
+			}
+		}
+	using @Bean to to indicate what beans to be created, it's in place of @ComponentScan and @Component
+		@Autowired is to inject dependencies, should still be used
+
+2. explicitly wire beans with XML
+	basic code
+		<?xml version="1.0" encoding="UTF-8"?>
+		<beans xmlns="http://www.springframework.org/schema/beans"
+			xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+			xsi:schemaLocation="http://www.springframework.org/schema/beans
+				http://www.springframework.org/schema/beans/spring-beans.xsd
+				http://www.springframework.org/schema/context">
+
+			<bean id="compactDisc" class="soundsystem.SgtPeppers" />	// only specify the id if you need to refer to it	
+				// Spring will instantiate the bean using SgtPeppers' default contructor
+				// so we can tell that JavaConfig is much more powerful, because @Bean can annotate any method			
+		</beans>
+		
+	two ways to declare DI
+		use <constructor-arg>
+			<bean id="cdPlayer" class="soundsystem.CDPlayer">
+				<constructor-arg ref="compactDisc" />
+			</bean>
+
+		use the c-namespace
+			<bean id="cdPlayer" class="soundsystem.CDPlayer"
+				c:cd-ref="compactDisc" />	// xmlns:c="http://www.springframework.org/schema/c" should be introduced
+								// "cd" in "cd-ref" is the name of the constructor's argument
+								//	which requires that the code is compiled with debug symbols stored in the class code
+								// instead, you can use c:_0-ref, where 0 indicating the parameter's position
+								// use c:_-ref if you only have one parameter
+
+		to inject literals into contructors
+			use <constructor-arg value="Beatles">
+			or c:_title="Beatles" or c:_1="Beatles"
+
+		to inject a collection into the contructor
+			<constructor-arg>
+				<list>				// or <set>
+					<value>hello</value>	// can be <ref bean="sgtPeppers">
+					<value>hi</value>
+				</list>
+			</constructor-arg>
+			// c-namespace cannot implement this
+
+	setting properties
+		approach 1
+			<bean id="cdPlayer"
+			      class="soundsystem.CDPlayer">
+			  <property name="compactDisc" ref="compactDisc" />	// of course, value or list is also acceptable
+			</bean>
+		approach 2, use p-namespace	// xmlns:p="http://www.springframework.org/schema/p"
+			<bean id="cdPlayer"
+			      class="soundsystem.CDPlayer"
+			      p:compactDisc-ref="compactDisc" />
+
+		a way to inject collections with p-namespace
+				<util:list id="trackList">	// xmlns:util="http://www.springframework.org/schema/util"
+				  <value>Sgt. Pepper's Lonely Hearts Club Band</value>
+				  <!-- ...other tracks omitted for brevity... -->
+				</util:list>
+			and then
+				p:tracks-ref="trackList"
+
+3. mixing configurations
+	referencing XML configuration in JavaConfig
+		@Configuration
+		@Import(CDPlayerConfig.class)			// import another JavaConfig. can be @Import({CDPlayerConfig.class, CDConfig.class})
+		@ImportResource("classpath:cd-config.xml")	// import an XML configuration
+		public class SoundSystemConfig {
+		}
+		// you may want to create a high level JavaConfig like this, not declaring any beans, but bringing all configurations together
+
+	referencing JavaConfig in XML configuration
+		<beans ...>
+			<import resource="cd-config.xml">	// import another XML
+			<bean class="soundsystem.CDConfig">	// you import a JavaConfig class as a bean into an XML configuration
+			...
+		</beans>
+
+
+

@@ -1,0 +1,96 @@
+1. runtime value injection
+	why?
+		@Bean
+		public CompactDisc sgtPeppers() {
+		  return new BlankDisc("The Beatles");	// this value is hard-coded, but sometimes you need it to be determined at runtime
+		}
+	two ways of evaluating values at runtime
+		property placeholders
+		the Spring Expression Language (SpEL)
+
+	retrieving values from property files
+		using Environment
+			@Configuration
+			@PropertySource("classpath:/com/app.properties")
+			public class MyConfig {
+				@Autowired
+				Environment env;
+
+				@Bean
+				public BlankDisc disc() {
+					return new BlankDisc( env.getProperty("disc.title") );
+				}
+			}
+		using placeholders
+			in Spring wiring, placeholder values are property names wrapped with ${ ... }
+				XML
+					<bean id="sgtPeppers"
+					      class="soundsystem.BlankDisc"
+					      c:_title="${disc.title}"
+					      c:_artist="${disc.artist}" />
+				JavaConfig
+					// in the constructor of a class
+					public BlankDisc(
+					      @Value("${disc.title}") String title,
+					      @Value("${disc.artist}") String artist) {
+					  this.title = title;
+					  this.artist = artist;
+					}
+					// not totally unterstood..
+			to use placeholder values, you need a Property-Placeholder-Configurer bean or a PropertySourcesPlaceholderConfigurer bean
+					@Bean
+					public static PropertySourcesPlaceholderConfigurer placeholderConfigurer() {
+					  return new PropertySourcesPlaceholderConfigurer();
+					}
+				or
+					<beans ...
+					  xmlns:context="http://www.springframework.org/schema/context"
+
+					  <context:property-placeholder />
+					</beans>
+
+2. Spring Expression Language
+	SpEL are used for many other purposes other than DI
+		such as defining security constraints in Spring Security
+	SpEL can do
+		expressing literal values
+			#{3.14}
+			#{9.8E4}
+			#{'Hello'}
+			#{true}
+		Referencing beans, properties, and methods
+			#{sgtPeppers}		// using its id
+			#{sgtPeppers.artist}	// accessing an object's property
+			#{artistSelector.selectArtist().toUpperCase()}		// invoking an object's method
+			#{artistSelector.selectArtist()?.toUpperCase()}		// if not null, then .toUpperCase()
+		Working with types
+			#{T(java.lang.Math).PI}		// Math is a class, using T() operator avoids confusing it with a bean whose id may be Math
+			#{T(java.lang.Math).random()}
+		operators
+			+, -, *, /, %, ^	// the last one is power
+			<, lt, >, gt, ==, eq, <=, le, >=, ge
+			and, or, not, |
+			?:
+				#{2>1 ? 'good' : 'hehe'}
+				#{disc.title ?: 'Rattle and Hum'}	// if null, then 'Rattle and Hum'
+			matches
+				#{admin.email matches '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.com'}		// evaluating regular expressions
+		collections
+			#{jukebox.songs[4].title}
+			#{'This is a test'[3]}		// get a character of a string
+			#{jukebox.songs.?[artist eq 'Aerosmith']}	// get a subset of all songs with artist Aerosmith
+			#{jukebox.songs.^[artist eq 'Aerosmith']}	// get the first match,  .$[] gets the last match
+			#{jukebox.songs.![title]}			// projection, gets a collection of all titles
+
+	using SpEL to inject values
+		public BlankDisc(
+		      @Value("#{systemProperties['disc.title']}") String title,
+		      @Value("#{systemProperties['disc.artist']}") String artist) {
+		  this.title = title;
+		  this.artist = artist;
+		}
+		<bean id="sgtPeppers"
+		      class="soundsystem.BlankDisc"
+		      c:_title="#{systemProperties['disc.title']}"
+		      c:_artist="#{systemProperties['disc.artist']}" />
+

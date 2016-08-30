@@ -1,0 +1,119 @@
+1. Spring profiles
+	why?
+		you may want different beans for different environment
+			e.g. different DataSource for development, QA and production environment
+		using Spring profiles, an environment-specific decision is made as to which beans will or won't be created
+			Spring makes the decision at runtime
+			so that the same deployment unit will work in all environments without being rebuilt
+	configuring profile beans
+		JavaConfig
+			apply @Profile at class level
+				@Configuration
+				@Profile("dev")
+				public class DevelopmentProfileConfig {
+					@Bean
+					public DataSource dataSource() { ... }
+				}
+
+				@Configuration
+				@Profile("pro")
+				public class ProductionProfileConfig {
+					...
+				}
+				// only when the profile is active will be beans in that JavaConfig be created
+			
+			or, apply @Profile at bean level
+				@Configuration
+				public class DataSourceConfig {
+					@Bean
+					@Profile("dev")
+					public DataSource dataSource() { ... }
+
+					@Bean
+					@Profile("pro")
+					public DataSource dataSource() { ... }
+				}
+		XML configuration
+			add the profile="dev" attribute to <beans>
+			or, add the attribute to the embedded <beans>
+				<beans ...>
+					<beans profile="dev"> ... </beans>
+					<beans profile="qa"> ... </beans>
+					...
+				</beans>
+	activate profiles
+		two properties to determine active profile
+			spring.profiles.active
+				if it's set, then its value determines which profile is active
+				if not, look for default
+			spring.profiles.default
+				if set, ...
+				if not, no profile is active
+			(both properties can contain multiple profiles)
+		ways to set the properties
+			As initialization parameters on DispatcherServlet
+			As context parameters of a web application
+				usually, you can use these two ways to set spring.profiles.default to be the development environment
+				so that during development, any developer can get the code and run it without any additional configuration
+
+			As JNDI entries
+			As environment variables
+			As JVM system properties
+				when the app is deployed in a QA or production environment,
+				the deployer can use these three ways to set the spring.profiles.active
+
+			Using the @ActiveProfiles annotation on an integration test class
+				this enables you to do some test using different profiles
+					@RunWith(SpringJUnit4ClassRunner.class)
+					@ContextConfiguration(classes={PersistenceTestConfig.class})
+					@ActiveProfiles("dev")
+					public class PersistenceTest {
+					  ...
+					}
+
+2. conditional beans
+	Spring profiles are a way to conditionally define beans, where the condition is which profile is active
+		conditional beans are a more general-purpose mechanism for conditional bean definition, where the condition is up to you 
+			e.g. you want certain beans only when some library is available, or when another bean is declared, or when a specific environment variable is set
+	example
+		@Bean
+		@Conditional(MagicExistCondition.class)
+		public MagicBean magicBean() {	return new MagicBean(); }
+
+		public class MagicExistCondition implements Condition {
+			@Override
+			public boolean matches( ConditionContext context, AnnotatedTypeMetadata metadata){
+				Environment env = context.getEnvironment();
+				return env.contaninsProperty("magic");
+			}
+		}
+	
+	ConditionContext
+		public interface ConditionContext {
+			BeanDefinitionRegistry getRegistry();
+				BeanDefinitionRegistry can be used to check for bean definitions
+
+			ConfigurableListableBeanFactory getBeanFactory();
+				ConfigurableListableBeanFactory can be used to check for presence of beans, and even to dig into bean properties
+
+			Environment getEnvironment();
+				Environment can be used to check for presence and values of environment variables
+
+			ResourceLoader getResourceLoader();
+				ResourceLoader can be used to read and inspect the contents of resources loaded
+
+			ClassLoader getClassLoader();
+				ClassLoader can be used to load and check for the presence of classes
+		}
+	AnnotatedTypeMetadata, can be used to check if a certain annotation is applied to this @Bean method, and inspect the attributes of the annotations
+		public interface AnnotatedTypeMetadata {
+			boolean isAnnotated(String annotationType);
+			Map<String, Object> getAnnotationAttributes(String annotationType);
+			Map<String, Object> getAnnotationAttributes(
+				String annotationType, boolean classValuesAsString);
+			MultiValueMap<String, Object> getAllAnnotationAttributes(
+				String annotationType);
+			MultiValueMap<String, Object> getAllAnnotationAttributes(
+				String annotationType, boolean classValuesAsString);
+		}
+

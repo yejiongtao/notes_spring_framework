@@ -1,0 +1,138 @@
+1. Spring
+	its primary features are dependency injection (DI) and aspect-oriented programming (AOP)
+	any Java application can benefit from Spring in terms of simplicity, testability, and loose coupling
+
+	four key strategies
+		lightweight and minimally invasive development with POJOs 
+			(plain old java objects, those doesn't implement any special interfaces of any of the Java framework)
+		loose coupling through DI and interface orientation
+		declarative programming through aspects and common conventions
+		eliminating boilerplate code with aspects and templates
+
+2. lightweight and minimally invasive development with POJOs
+	Spring almost never forces you to implement a Spring-specific interface or extend a Spring-specific class
+		at worst, a class may be annotated with one of the Spring's annotations
+
+3. dependency injection
+	an object should not obtain a reference of another object by itself, for example, initiating another object in its constructor
+		because if so, the dependency and coupling between classes will be significant
+		and the code becomes hard to test, reuse or understand
+	instead, a reference should be injected to it, for example, passed to it as a parameter of the constructor
+		and the parameter is often an interface
+		so in this way, this class only knows the interface, instead of any implementations
+
+	with DI, objects are given their dependencies at creation time by some third party that coordinates each object in the system
+		in Spring, ways of wiring objects together are
+			via an XML file, or using a Java configuration class
+			and the Spring application context is responsible for the creation of and wiring of the objects that make up the application
+		this makes it possible to change those dependencies with no changes to the depending classes
+	
+4. aspect-oriented programming (AOP)
+	enables you to capture functionality that's used throughout the app in resuable components
+		e.g. logging, transaction management, and security
+		they are not the class's core functionality, but they tend to cut across multiple components in a system
+			the code is duplicated, so it's hard to maintain
+			the components are littered with code beyond their core functionality
+	AOP makes it possible to modularize these services and then apply them declaratively to the components they should affect
+		the components knows nothing about these services
+
+5. eliminating boilerplate code with templates
+	boilerplate code
+		for example, to use JDBC, you have to create a connection, create a statement, execute, handle exceptions, close the connection, etc
+		most of them will be written again next time you use JDBC
+	Spring encapsulates those code in its templates, so that all you have to do is those related to the real work
+
+6. Spring container
+	where the objects live in a Spring-based application
+		creates the objects, wires them together, configures them, and manages their complete lifecycle
+	application context is a Spring container that mostly used
+
+7. application context
+	different flavors
+		AnnotationConfigApplicationContext 
+			Loads a Spring application context from one or more Java-based configuration classes
+				ApplicationContext context = new AnnotationConfigApplicationContext(
+					com.jioye.knights.config.KnightConfig.class);	// give the class
+		AnnotationConfigWebApplicationContext 
+			Loads a Spring web application context from one or more Java-based configuration classes
+		ClassPathXmlApplicationContext 
+			Loads a context definition from one or more XML files located in the classpath, treating context-definition files as classpath resources
+				ApplicationContext context = new ClassPathXmlApplicationContext("knight.xml");
+		FileSystemXmlApplicationContext
+			Loads a context definition from one or more XML files in the filesystem
+				ApplicationContext context = new FileSystemXmlApplicationConetxt("c:/knight.xml");
+		XmlWebApplicationContext 
+			Loads context definitions from one or more XML files contained in a web application
+	use context.getBean() to retrieve beans
+
+8. A bean's life
+	a. Spring instantiates the bean.
+	b. Spring injects values and bean references into the bean’s properties.
+
+	c. If the bean implements BeanNameAware, 
+		Spring passes the bean’s ID to the setBeanName() method.
+	d. If the bean implements BeanFactoryAware, 
+		Spring calls the setBeanFactory() method, passing in the bean factory itself.
+	e. If the bean implements ApplicationContextAware, 
+		Spring calls the setApplicationContext() method, passing in a reference to the enclosing application context.
+
+	f. If the bean implements the BeanPostProcessor interface, 
+		Spring calls its postProcessBeforeInitialization() method.
+	g. If the bean implements the InitializingBean interface,
+		Spring calls its afterPropertiesSet() method. 
+		Similarly, if the bean was declared with an init-method, then the specified initialization method is called.
+	h. If the bean implements BeanPostProcessor, 
+		Spring calls its postProcess-AfterInitialization() method.
+
+	i. At this point, the bean is ready to be used by the application 
+		and remains in the application context until the application context is destroyed.
+
+	j. If the bean implements the DisposableBean interface, Spring calls its destroy() method. 
+		Likewise, if the bean was declared with a destroy-method, the specified method is called.
+
+9. modules of the core Spring Framework
+	the Spring Framework is make up of six well-defined module categories
+		Core Spring container
+			the basis of all of the Spring's modules
+			consists of the application context, and also some core enterprise services such as email, EJB integration, scheduling, etc
+		AOP module
+			to support AOP
+		Data access and integration
+			including supports for JDBC, ORM (Object-relational mapping), transaction, JMS (Java Message Service), etc
+		Web and remoting
+			Spring has its own MVC framework, but also integrates with several popular MVC frameworks, such as Apache Structs, JSF, WebWork, etc
+		Instrumentation
+			provides a weaving agent for Tomcat that transforms class files as they're loaded by the class loader
+			no need to understand
+		Testing
+			to support testing	
+
+10. the Spring landscape
+	the whole Spring portfolio includes several frameworks and libraries that build on the core Spring Framework and on eack other
+		brings the Spring programming model to almost every facet of Java development
+	i.e.
+		Spring Web Flow
+			provides support for building conversational, flow-based web applications that guide users to a goal
+				such as shopping carts
+		Spring Web Services
+			contract-first
+				the web services provided in the core Spring is contract-last
+				no idea what it is
+		Spring Security
+			implemented using Spring AOP, offers a declarative security mechanism for Spring-based app
+		Spring Integration
+			offers implementations of several common integration patterns in Spring's declarative style
+				for the app to interact with other enterprise applications
+		Spring Batch
+			to develop a batch application
+		Spring Data
+			makes it easy to work with all kinds of databases
+		Spring Social
+			helps you connect your Spring application with REST APIs
+				can be used to connect to Facebook, Twitter, etc
+		Spring Mobile
+			supports developments of mobile web applications
+		Spring for Android
+			brings some of the simplicity afforded by Spring Framework to Android
+		Spring Boot
+			to simplify Spring itself by employing automatic configuration techniques

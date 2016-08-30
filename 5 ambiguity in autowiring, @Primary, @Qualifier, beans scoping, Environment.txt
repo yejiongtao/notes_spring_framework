@@ -1,0 +1,105 @@
+1. ambiguity in autowiring
+	autowiring only works when exactly one bean matches the desired result
+		but in reality, autowiring ambiguity is more rare than you'd expect
+
+	when ambiguity happends, you can
+		designate one of the candidate beans as the primary choice
+			use @Primary alongside @Component or @Bean, or set primary="true" for <bean>
+				@Component
+				@Primary
+				public class IceCream implements Dessert { ... }
+
+				@Component 
+				public class Pudding implements Dessert { ... }
+
+				@Autowired
+				public void setDessert(Dessert dessert) { ... }		// in this way, this won't be ambiguous
+
+		use qualifiers to narrow the choices to one
+			default qualifier
+				@Autowired
+				@Qualifier("iceCream")		// every bean has a default qualifier has the same name as its bean id
+				public void setDessert(Dessert dessert) { ... }
+					// but using this, you introduced coupling
+					// and also dependency, cuz the qualifier will be expired if you refactor the name of class IceCream
+
+			create qualifiers
+				@Component			// and ofcourse you can use @Qualifier to annotate a @Bean as well
+				@Qualifier("cold")		// usually, we define it as a description
+				public class IceCream implements Dessert { ... }
+					// what if you want to use multiple qualifiers, since it's not allowed to have mulitple annotations with the same name
+			
+			define custom qualifier annotations
+				@Target({ElementType.CONSTRUCTOR, ElementType.FIELD,
+					ElementType.METHOD, ElementType.TYPE})
+				@Retention(RetentionPolicy.RUNTIME)
+				@Qualifier
+				public @interface Cold {}
+
+				// now you can use multiple qualifiers to annotate a bean or a autowired method
+				@Component
+				@Cold
+				@Creamy
+				public class IceCream implements Dessert { ... }
+				// and it's type-safe compared to using a string as a qualifier
+
+2. scoping beans
+	scopes under which a bean can be created
+		Singleton  -default
+			One instance of the bean is created for the entire application
+			most of the time, singletons are ideal
+		Prototype
+			One instance of the bean is created every time the bean is injected into or retrieved from the Spring application context
+			so that everyone gets its own instance
+		Session
+			In a web application, one instance of the bean is created for each session
+		Request
+			In a web application, one instance of the bean is created for each request
+	Prototype
+		@Component						// or @Bean, or set scope="prototype" for <bean>
+		@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)		// or Scope("prototype"), but not type-safe
+		public class Notepad { ... }
+
+	request and session scope
+		session scope is directly attached a given user
+			e.g. a bean represents a shopping cart
+				(if you use prototype scope, the instance you get from different part of the application is different)
+			to use
+				@Component
+				@Scope(value=WebApplicationContext.SCOPE_SESSION,
+				    proxyMode=ScopedProxyMode.INTERFACES)
+				public ShoppingCart cart() { ... }
+			about proxyMode
+				if a session-scoped bean is injected to a singleton-scoped bean, which one of the instances should be injected?
+					we should inject a proxy, and the proxy will delegate to the certain instance when certain session is active
+				if the session-bean is an interface, we use ScopedProxyMode.INTERFACES to create an interface proxy
+					and ScopedProxyMode.TARGET_CLASS for concreate class
+		request scope is similar
+
+		in XML
+			<bean id="cart"
+			      class="com.myapp.ShoppingCart"
+			      scope="session">
+			  <aop:scoped-proxy />	// target-class proxy by default, set proxy-target-class="false" to create interface proxy
+			</bean>			// xmlns:aop="http://www.springframework.org/schema/aop"
+
+3. org.springframework.core.env.Environment
+	you can get it like this
+		@Configuration
+		@PropertySource("classpath:/com/app.properties")	// inside app.properties, disc.artist=The Beatles
+		public class MyConfig {
+			@Autowired
+			Environment env;
+
+			...
+		}		
+	usage
+		env.getProperty(String key)		// get null if the property is not defined
+		env.getRequiredProperty(String key)	// get an Exception if the property is not defined
+		env.containsProperty(String key)
+
+		env.getActiveProfiles()
+		env.getDefaultProfiles()
+		env.acceptProfiles(String... profiles)
+
+

@@ -1,0 +1,103 @@
+1. Spring's MVC web framework
+	the life of a request
+		Spring's DispatcherServlet gets the request
+		DispatcherServlet consults one or more Handler Mappings, to decide which MVC Controller to send the request to
+		DispatcherServlet passes the request to the Controller, and then the Controller processes the information
+			or it delegates the processing to one or more service objects
+		Controller sends model data and the name of the view that should render the output back to DispatcherServlet
+		DispatcherServlet consults a view resolver, to map the logical view name to a specific view implementation
+			which may or may not be a JavaServer Page (JSP, something like PHP, ASP)
+		DispatcherServlet sends the model data to the View implementation
+		View renders output that will be carried back to the client
+	
+	set up Spring MVC
+		configure DispatcherServlet
+			the old approach to do this is in a web.xml file carried in the web application's WAR (web application archive) file
+			or, use Java configuration
+				// note that it only works with Servlet 3.0-capable servers, such as Apache Tomcat 7 or higher
+
+				public class SpittrWebAppInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
+					// any class extends AbstractAnnotationConfigDispatcherServletInitializer will be used to configure DispatchServlet
+					@Override
+					protected String[] getServletMappings() {	// identifies one or more paths that DispatcherServlet will be mapped to
+						return new String[]{ "/" };		// mapped to /, so that all the request will be handled by this
+					}
+
+					@Override
+					protected Class<?>[] getRootConfigClasses() {	// configs to load the other beans, e.g. some back end components
+						return new Class<?>[] { RootConfig.class };
+					}
+
+					@Override
+					protected Class<?>[] getServletConfigClass() {	// configs to load beans containing web components such as controllers
+						return new Class<?>[] { WebConfig.class };
+					}
+				}
+				// in Spring web app, there're often two application context
+				// created by DispatcherServlet and ContextLoaderListener respectively
+				// are responisble for creating those two kinds of beans
+
+				@Configuration
+				@EnableWebMvc				// enable annotation-driven Spring MVC
+				@ComponentScan("spittr.web")		// to find controllers
+				public class WebConfig extends WebMvcConfigurerAdapter {	// extending this class is just for configureDefaultServletHandling()
+				    @Bean
+				    public ViewResolver viewResolver() {			// configure a JSP view resolver
+					InternalResourceViewResolver resolver = new InternalResourceViewResolver();
+					resolver.setPrefix("/WEB-INF/views/");			// looks for JSP files by wrapping view names with a prefix and suffix
+					resolver.setSuffix(".jsp");
+					resolver.setExposeContextBeansAsAttributes(true);
+					return resolver;
+				    }
+
+				    @Override
+				    public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
+					configurer.enable();		// ask DispatcherServlet to forward requests for static resources to the servlet container's
+				    }					// default servlet and not to handle them itself
+				}
+
+				@Configuration
+				@ComponentScan(basePackages = {"spittr"},
+					excludeFilters = { @ComponentScan.Filter(type = FilterType.ANNOTATION, value = EnableWebMvc.class)})
+				public class RootConfig {
+				}
+
+2. writing a controller
+	@Controller			// @Controller has the same effect as @Component, just using @Controller to make things clear
+	public class HomeController {
+	    @RequestMapping(value = "/", method = RequestMethod.GET)
+	    public String home() {
+		return "home";          // View name is home, given the way we configured InternalResourceViewResolver, it will be /WEB-INF/views/home.jsp
+	    }
+	}
+
+	// to test the controller
+	public class HomeControllerTest {
+		@Test
+		public void testHomePage() throws Exception {
+			HomeController controller = new HomeController();
+			MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+			mockMvc.perform(MockMvcRequestBuilders.get("/")).
+				andExpect(MockMvcResultMatchers.view().name("home"));
+		}
+	}
+
+	// you can also define the controller like this
+	@Controller
+	@RequstMapping({"/", "/homepage"})		// you can move it here, and it can be an array
+	public class HomeController {
+	    @RequestMapping(method = RequestMethod.GET)
+	    public String home() {
+		return "home";
+	    }
+	}
+
+3. for it to run
+	choose Spring-MVC and Web when creating project
+		or add facets to the project once created
+		(you may want to delete the web.xml or something, if you're using Java to configure)
+	add javax-servlet-api as dependency
+	download tomcat, and specify the tomcat server in run configuration
+	add javax.servlet:jstl as dependency if you are using <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+		and you must add them to the artifact (don't know why)
+

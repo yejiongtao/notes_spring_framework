@@ -1,0 +1,101 @@
+1. three primary wiring mechanisms
+		explicit configuration in XML
+		explicit configuration in Java
+		implicit bean discovery and automatic wiring
+	when to use
+		lean on automatic configuration as much as you can
+		prefer Java config to XML, when you must explicitly configure beans
+			such as when you are configuring those you don't maintain source code
+		fall back to XML only when there’s a convenient XML namespace you want to use that has no equivalent in JavaConfig
+
+2. automatically wiring beans
+	what Spring's automatic wiring does
+		component scanning
+			automatically discovers beans
+		autowiring
+			automatically satisfies bean dependencies
+	code
+		// it's important that you define it as an interface, because in this way you keep the coupling between the CD and CDPlayer minor
+		public interface CompactDisc {
+			void play();
+		}
+
+		@Component	// tell the Spring that a bean should be created for this class
+				// this bean is automatically named "sgtPeppers"
+				// you can give a different name by @Component("mySgtPeppers") or @Named("mySgtPeppers")
+				//	they are mostly equivalent
+		public class SgtPeppers implements CompactDisc {
+			@Override
+			public void play() {
+				System.out.println("Playing SgtPeppers");
+			}
+		}
+
+		@Configuration	// denote a configuration class
+		@ComponentScan	// ask Spring to scan for components. 
+				// By default, it scans in the package this configuration class is in
+				// you can specify a package by @ComponentScan("soundsystem") or @ComponentScan(basePackages = "soundsystem")
+				//	multiple packages by @ComponentScan(basePackages = {"soundsystem", "package2"})
+				// or, you can specify classes to be scanned, in this way, it will be type-safe
+				//	@ComponentScan(basePackageClasses = {CDPlayer.class, DVDPlayer.class})
+				//	or, you can define an empty marker interface, implements that interface for those you want to scan
+				//	and just give the interface to the basePackageClasses
+		public class CDPlayerConfig() {
+		}
+
+		// a JUnit4 class to test the auto wiring
+		@RunWith(SpringJUnit4ClassRunner.class)			// to create a Spring application conetxt when the test starts
+		@ContextConfiguration(classes = CDPlayerConfig.class)	// to load the configuration
+		public class CDPlayerTest {
+
+			@Autowired
+			private CompactDisc cd;
+
+			@Test
+			public void cdShouldNotBeNull() {
+				Assert.assertNotNull(cd);
+			}
+		}
+
+	about @Autowired
+		autowiring is to let Spring automatically satisfy a bean's dependencies
+		can be used to annotate a field, a constructor or any method
+			@Autowired
+			public CDPlayer(CompactDisc cd) {}
+		after Spring has instantiated the bean, it will try to satisfy all the dependencies
+			if there's only one bean matches, it will be wired in
+			if there's multiple beans match, an exception indicating ambiguity will be thrown
+			if there's no match, an exception will be thrown
+				@Autowire(required = false)
+				then no exception thrown if no match exists
+		@Inject is almost equivalent to @Autowired
+		example
+			@Component
+			public class CDPlayer implements MediaPlayer {
+				private CompactDisc mCd;
+
+				@Autowired
+				public CDPlayer(CompactDisc cd) { mCd = cd; }
+
+				public void play() { mCd.play(); }
+			}
+
+			@RunWith(SpringJUnit4ClassRunner.class)
+			@ContextConfiguration(classes = CDPlayerConfig.class)
+			public class CDPlayerTest {
+				
+				@Rule
+				public final SystemOutRule out = new SystemOutRule().enableLog();	// should add System Rule as dependency
+					// enables you to make assertions against whatever is written to the console
+
+				@Autowired
+				private MediaPlayer player;
+
+				@Test
+				public void play(){
+					player.play();
+					Assert.assertEquals("Playing SgtPeppers\r\n", out.getLog());	// \r\n is necessary if it uses println()
+				}
+			}
+
+
