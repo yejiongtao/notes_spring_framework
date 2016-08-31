@@ -82,7 +82,7 @@
 		}
 	}
 
-	// you can also define the controller like this
+	// you can also define the controller like this. the value of @ReqestMapping of both the controller class and the method will conbine to be the path
 	@Controller
 	@RequstMapping({"/", "/homepage"})		// you can move it here, and it can be an array
 	public class HomeController {

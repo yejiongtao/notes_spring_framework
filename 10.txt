@@ -1,5 +1,0 @@
-4. passing model data to the view
-
-
-
-testing using Mockito

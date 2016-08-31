@@ -1,0 +1,128 @@
+1. passing model data to the view
+	passing model data
+		@RequstMapping(method = RequestMethod.GET)
+		public String spittles(Model model){	// Model is actually a map
+			model.addAttribute(object);	// if no key is specified, it's inferred from the type of the object, e.g. spittleList
+							// it's better to specify it, model.addAttribut("spittleList", object);
+			return "spittles";		// return view name
+		}
+
+		or, use Map instead of Model
+		public String spittles(Map model)
+
+		or (not recommanded)
+		@RequstMapping(method = RequestMethod.GET)
+		public List<Spittle> spittles() {	// the key is inferred from the return type
+			return object;			// the view name is inferred from the request path. e.g. "spittles" for path "/spittles"
+		}
+
+	getting model data
+		the model data is put into the request as request attributes
+		for example, to access a list
+			<c:forEach items="${spittleList}" var="spittle" >
+			  <li id="spittle_<c:out value="spittle.id"/>">
+			    <div class="spittleMessage">
+			      <c:out value="${spittle.message}" />
+			    </div>
+			    <div>
+			      <span class="spittleTime"><c:out value="${spittle.time}" /></span>
+			      <span class="spittleLocation">
+				  (<c:out value="${spittle.latitude}" />,
+				  <c:out value="${spittle.longitude}" />)</span>
+			    </div>
+			  </li>
+			</c:forEach>
+
+2. testing using Mockito
+	    @Test
+	    public void shouldShowRecentSpittles() throws Exception {
+		List<Spittle> expectedSpittles = createSpittleList(20);
+
+		SpittleRepository mockRepository = Mockito.mock(SpittleRepository.class);	// mock an instance of SpittleRepository
+		Mockito.when(mockRepository.findSpittles(Long.MAX_VALUE, 20))			// set up the mock
+			.thenReturn(expectedSpittles);
+
+		SpittleController spittleController = new SpittleController(mockRepository);
+		MockMvc mockMvc = MockMvcBuilders.standaloneSetup(spittleController)
+			.setSingleView(new InternalResourceView("/WEB_INF/views/spittles.jsp"))
+			.build();
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/spittles"))
+			.andExpect(MockMvcResultMatchers.view().name("spittles"))
+			.andExpect(MockMvcResultMatchers.model().attributeExists("spittleList"))
+			.andExpect(MockMvcResultMatchers.model().attribute("spittleList", CoreMatchers.hasItems(expectedSpittles.toArray())));
+	    }
+
+3. accepting request input
+	ways for a client to pass data into a controller's handler method in Spring MVC
+		query parameters
+		form parameters
+		path variables
+
+	query parameters
+		// query parameters are like "/spittles?max=238900&count=50"
+		@RequestMapping(method = RequestMethod.GET)
+		public String spittles(Model model,
+				@RequestParam(value = "max", defaultValue = MAX_LONG_AS_STRING) long max,	// it's better to give the defaultValue
+											// attention, attibutes of annotations must be compile-time constant
+				@RequestParam(value = "count", defaultValue = "20") int count) {
+			model.addAttribute(mSpittleRepository.findSpittles(max, count));
+			return "spittles";
+		}
+	path variables
+		// instead of "/spittles/show?spittle_id=12345", we use "/spittles/12345" to identify a resource
+		@RequestMapping(value = "/{spittleId}", method = RequestMethod.GET)
+		public String spittle(Model model,
+				  @PathVariable("spittleId") long spittleId) {
+			model.addAttribute("spittle", mSpittleRepository.findOne(spittleId));
+			return "spittle";
+		}
+4. form inputs
+	controller method
+		@RequestMapping(value = "/register", method = RequestMethod.POST)
+		public String processRegistration(Spitter spitter){		// it will call the Spitter's default contructor to initiate an instance
+										// and then use the setters to set the fields
+										// so, you must implement setters!
+			mSpitterRepository.save(spitter);
+			return "redirect:/spitter/" + spitter.getUsername();	// redirect
+										// "forward:"
+		}
+	to test it
+		@Test
+		public void shouldProcessRegistration() throws Exception {
+			SpitterRepository mockRepository = Mockito.mock(SpitterRepository.class);
+			Spitter unsaved = new Spitter("jbauer", "24hours", "Jack", "Bauer");
+			Spitter saved = new Spitter(24L, "jbauer", "24hours", "Jack", "Bauer");
+			Mockito.when(mockRepository.save(unsaved)).thenReturn(saved);
+
+			SpitterController controller = new SpitterController(mockRepository);
+			MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+
+			mockMvc.perform(MockMvcRequestBuilders.post("/spitter/register")
+				.param("username", "jbauer")		// the name must be the same as the field of the Spitter
+				.param("password", "24hours")		// mUsername actually, but since the setter is setUsername(), so this should be username
+				.param("firstName", "Jack")
+				.param("lastName", "Bauer"))
+				.andExpect(MockMvcResultMatchers.redirectedUrl("/spitter/jbauer"));
+
+			Mockito.verify(mockRepository, Mockito.atLeastOnce()).save(unsaved);
+		}
+	validate forms
+		javax.validation package can be used
+		example
+			public class Spitter {
+				@NotNull			// javax.validation:validation-api 1.1 must be added
+				@Size(min = 2, max = 30)
+				private String mUsername;
+				...
+			}
+
+		@RequestMapping(value = "/register", method = RequestMethod.POST)
+		public String processRegistration(@Valid Spitter spitter, Errors errors){	// Errors must follow @Valid
+			if(errors.hasErrors())
+				return "registerForm";
+
+			mSpitterRepository.save(spitter);
+			return "redirect:/spitter/" + spitter.getUsername();
+		}
+
