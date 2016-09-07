@@ -82,7 +82,7 @@
 		@RequestMapping(value = "/register", method = RequestMethod.POST)
 		public String processRegistration(Spitter spitter){		// it will call the Spitter's default contructor to initiate an instance
 										// and then use the setters to set the fields
-										// so, you must implement setters!
+										// so, you must provide the default constructor and implement setters!
 			mSpitterRepository.save(spitter);
 			return "redirect:/spitter/" + spitter.getUsername();	// redirect
 										// "forward:"

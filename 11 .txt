@@ -1,1 +1,149 @@
-1. 
+1. view resolver
+	takes a logical view name, returns a View implementation
+		then the View will render the model data into the response
+	frequently used ViewResolver
+		InternalResourceViewResolver
+			for JSP
+		TilesViewResolver
+			for Apache Tiles views
+
+2. JSP, Spring supports JSP views in two ways:
+	InternalResourceViewResolver
+		InternalResourceViewResolver can be used to resolve view names into JSP files
+			note that you can give the a logical view name as "books/detail"
+			in this way, you organize your view templates under a hierarchy of directories
+				    @Bean
+				    public ViewResolver viewResolver() {
+					InternalResourceViewResolver resolver = new InternalResourceViewResolver();
+					resolver.setPrefix("/WEB-INF/views/");
+					resolver.setSuffix(".jsp");
+					return resolver;
+				    }
+
+		if you’re using JavaServer Pages Standard Tag Library (JSTL) tags in your JSP pages
+			you may want it to resolve a JstlView instead
+				by resolving JstlView, the JSTL tags will be given the Locale and any message source configured in Spring
+			* actually in the newer versions, InternalResourceViewResolver will automatically detect whether you're using JSTL
+				and automatically resolve JstlView if so
+
+	Spring provides two JSP tag libraries
+		library for form-to-model binding
+			<%@ taglib uri="http://www.springframework.org/tags/form" prefix="sf" %>	// prefix can be anything
+			...
+			<sf:form method="POST" commandName="spitter">		// <sf:form> renders a <form>, and also binds it with a model object "spitter"
+			  First Name: <sf:input path="firstName" /><br/>	// if attribute "firstName" of the object exists, the value of <input> will be set to it
+			  Last Name: <sf:input path="lastName" />
+				<sf:errors path="lastName" /><br/>		// <sf:errors> shows errors in a <span> if it exists
+			  <input type="submit" value="Register" />
+
+			  <sf:errors path="*" element="div" />			// or you can show all errors together in a <div>
+			</sf:form>
+
+			// you can wrap the label with <sf:label> to set the errorClass
+			<sf:label path="firstName" cssErrorClass="error">First Name</sf:label>:		// the css class will only be applied if errors occur
+				<sf:input path="firstName" cssErrorClass="error" />
+
+			you can set the error message in the validation annotations
+				@Size(min=2, max=30, message="Size must be between {min} and {max}!")
+			and you can put those string inisde a AnyName.properties file at the root of the classpath
+				and reference them using {firstName.size}
+				for the convenience of localization
+		
+		a library for some general features
+			<%@ taglib uri="http://www.springframework.org/tags" prefix="s" %>
+			displaying internationalized messages
+				<h1><s:message code="spittr.welcome" /></h1>
+
+				// to provide a message source
+				@Bean
+				public MessageSource messageSource() {
+					ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
+					messageSource.setBasename("messages");
+					return messageSource();
+				}
+
+				// in messages.proprerties file in the classpath
+				spittr.welcome=Welcome to Spittr!
+				// and you can create a messages_es.properties for Spanish
+					no idea how to name it
+			
+			creating URLs
+				renders the URL with the servlet context path prepended
+					<a href="<s:url href="/spitter/register" />">Register</a>
+				assign the URL to a variable
+					<s:url href="/spitter/register" var="registerUrl" />	// by default it's created in page scope
+												// can set scope="request" or application or session
+					<a href="${registerUrl}">Register</a>
+				add query paramters
+					<s:url href="/spittles" var="spittlesUrl">
+					  <s:param name="max" value="60" />
+					  <s:param name="count" value="20" />
+					</s:url>
+				add path parameters
+					<s:url href="/spitter/{username}" var="spitterUrl">
+					  <s:param name="username" value="jbauer" />
+					</s:url>
+				escape
+					set htmlEscape="true" if you want to use it in html
+					set javaScriptEscape="true" if ...
+
+			escaping content
+				<s:escapeBody htmlEscape="true">...</s:escapeBody>
+				or javaScriptEscape="true"
+
+3. Apache Tiles views
+	to define reusable layouts in the templates
+	configure a TilesConfigurer and a Tiles view resolver
+		@Bean
+		public TilesConfigurer tilesConfigurer() {
+			TilesConfigurer tiles = new TilesConfigurer();
+			tiles.setDefinitions(new String[]{"/WEB_INF/layout/tiles.xml"});	// "/WEB-INF/**/tiles.xml", looks for any file named tiles.xml in WEB_INF
+													and its subdirectories
+			tiles.setCheckRefresh(true);
+			return tiles;
+		}
+		@Bean
+		public ViewResolver viewResolver() {
+			return new TilesViewResolver();
+		}
+	difine tiles
+		skipped...
+
+4. Thymeleaf
+	drawbacks of JSP
+		not pure HTML, but littered with tags from various JSP tag libraries
+			and the tags can be anywhere
+		can only be used for web views in a servlet-based web application
+	Thymeleaf
+		doesn't rely on tag libraries
+		not coupled to the servlet specification
+	to use it with Spring
+		configure
+			A ThymeleafViewResolver that resolves Thymeleaf template views from logical view names
+				@Bean
+				public ViewResolver viewResolver(SpringTemplateEngine templateEngine) {
+					ThymeleafViewResolver viewResolver = new ThymeleafViewResolver();
+					viewResolver.setTemplateEngine(templateEngine);
+					return viewResolver;
+				}
+			A SpringTemplateEngine to process the templates and render the results
+				@Bean
+				public TemplateEngine(TemplateResolver templateResolver) {
+					SpringTemplateEngine templateEngine = new SpringTemplateEngine();
+					templateEngine.setTemplateResolver(templateResolver);
+					return templateEngine;
+				}
+			A TemplateResolver that loads Thymeleaf templates
+				@Bean
+				public TemplateResolver templateResolver() {
+					TemplateResolver templateResolver = new ServletContextTemplateResolver();
+					templateResolver.setPrefix("/WEB_INF/templates/");
+					templateResolver.setSuffix(".html");
+					templateResolver.setTemplateMode("HTML5");
+					return templateResolver;
+				}
+		define Thymeleaf templates
+			
+
+
+
